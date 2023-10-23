@@ -72,7 +72,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
             max_context = body.get('max_context_length', 2048)
-            while len(prompt_lines) >= 0 and len(encode('\n'.join(prompt_lines))) > max_context:
+            while len(encode('\n'.join(prompt_lines))) > max_context:
                 prompt_lines.pop(0)
 
             prompt = '\n'.join(prompt_lines)
@@ -100,22 +100,14 @@ class Handler(BaseHTTPRequestHandler):
                 'stopping_strings': body.get('stopping_strings', params["default_stopping_strings"]),
             }
             stopping_strings = generate_params.pop('stopping_strings')
-            if not params["is_advanced_translation"]:
-                generator = generate_reply(prompt, generate_params, stopping_strings=stopping_strings)
-            else:
+            if params["is_advanced_translation"]:
                 # advanced logic
                 script.params["is_translate_user"] = False  # we don't need proc to English
                 script.params["is_translate_system"] = False  # we don't need proc back
-                generator = generate_reply(prompt, generate_params, stopping_strings=stopping_strings)
-
-
+            generator = generate_reply(prompt, generate_params, stopping_strings=stopping_strings)
             answer = ''
             for a in generator:
-                if isinstance(a, str):
-                    answer = a
-                else:
-                    answer = a[0]
-
+                answer = a if isinstance(a, str) else a[0]
             # seems we need it here....
             answer = answer[len(prompt):]
 
@@ -135,9 +127,9 @@ class Handler(BaseHTTPRequestHandler):
                 # result end: Hi!
                 # so we need cache for phrase "Aqua: Hi!"
 
-                complex_phrase1_user = prompt_lines_orig[len(prompt_lines_orig)-1]+" "+answer_lines[0]
-                complex_phrase1_user2 = prompt_lines_orig[len(prompt_lines_orig) - 1] + answer_lines[0]
-                complex_phrase1_en = prompt_lines[len(prompt_lines_orig)-1]+" "+answer_lines_orig[0]
+                complex_phrase1_user = f"{prompt_lines_orig[-1]} {answer_lines[0]}"
+                complex_phrase1_user2 = prompt_lines_orig[-1] + answer_lines[0]
+                complex_phrase1_en = f"{prompt_lines[len(prompt_lines_orig) - 1]} {answer_lines_orig[0]}"
                 cache_en_translation[complex_phrase1_user] = complex_phrase1_en
                 cache_en_translation[complex_phrase1_user2] = complex_phrase1_en
 
@@ -245,7 +237,6 @@ def load_settings():
     except FileNotFoundError:
         #memory_settings = {"position": "Before Context"}
         save_settings()
-        pass
 
 def load_cache_en():
     global cache_en_translation
